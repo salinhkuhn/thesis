@@ -1,0 +1,91 @@
+\chapter{Background Section and Related Work}
+
+This chapter will give the background needed to understand the core work of this thesis. First, we will give an introduction to theorem proving and explain design principles,  before diving into Lean, the theorem prover at focus in this work. Subsequently, the implementation goal, a formally verified instruction selection lowering LLVM IR to instruction set architecture instructions , will be explained in more detail.
+
+\section{Introduction to Interactive Theorem Provers}
+Mathematical reasoning and formal proofs are fundamental in various fields, including computer science and engineering. Traditionally, proofs have been verified manually by mathematicians in a time-consuming process prone to human error. With today's increasing complexity of mathematical problems and software systems, theorem provers have become essential tools for ensuring correctness and reliability. 
+
+Theorem provers exist along a wide spectrum: Fully automated theorem provers discover proofs independently, whereas interactive theorem provers, such as Lean, the theorem prover at focus in this work, are software tools designed to facilitate the development and verification of mathematical proofs through collaboration between humans and machines. By leveraging human-computer interaction, a machine doesn’t only compute a mathematical expression but deduces a proof for it. As suggested by the name, ITPs serve as white-box tools enabling users to construct proofs interactively while optimally also offering automation features that simplify routine proof steps. The focus lies on reducing the effort required for verification while still aiming for mathematically rich proofs of complex systems supported by user insights. 
+
+ In this thesis, the Lean prover will be used to formally verify and prove the functional correctness of an instruction selection pipeline from LLVM IR to the RISC-V ISA.
+
+Any object to be verified within an ITP must first be described in mathematical terms. Once these formal definitions are established, correctness claims regarding the theorems can be validated within the ITP. The ITP ensures that every proof step follows explicitly stated axioms and inference rules.  
+
+The foundation of a theorem prover is a “foundational language”[quote Fernandie Mir] with a set of inference rules designed to describe and derive mathematical objects, proofs, and formulas. The foundation of an interactive theorem prover is often chosen to be a formal logic. A formal logic defines syntax, semantics, and a set of derivation rules that standardize how new theorems can be inferred from existing axioms, making it the precise reasoning framework of an interactive theorem prover. An ITP ensures that every proof step in the proof process is rigorously justified by previously deduced theorems and axioms. Common formal logics used include first-order logic (FOL), higher-order logic (HOL), and instances of dependent type theory, introduced in a later chapter. Depending on the expressiveness and decidability of the formal logic, it becomes easier or harder to design an interactive or automated theorem prover based on it. FOL is often used in automated theorem provers due to well-optimized proof search techniques, whereas HOL is used in interactive theorem provers like Isabelle/HOL, where its expressiveness allows the construction of complex formal proofs through support by user insights.
+
+The actual component of a theorem prover that checks that proofs for validity is the kernel. The trustworthiness and soundness of theorem provers hinge on their kernel,  so developers aim to keep them simple, small and “lean”. 
+Based on the deep connection between formal logical and typing systems, explained in the next subchapter, a kernel can conduct proof validation either using typing rules or formal logical inference. The kernel checks that every proof step of the given proof object is justifiable within the axiomatic or type-theoretic framework. In Lean, the kernel is a type-checker and takes in elaborated proof terms and validates whether all the terms conform to their expected types. 
+
+Other kernel design choices are based on functions that correspond to logical inference rules e.g. in Isabelle/HOL. [TO DO: DOUBLE CHECK ]Proofs can be derived from a type theory aspect as well as a formal logical aspect, which is an important paradigm that has influenced the design of ITPs. In the next subsection, we will look at the connection between type systems and formal logic. [TO DO: NOT SURE IF WELL SAID]  [Source group 1]
+
+\subsection{Type theory and Curry-Howard-Lambek-Isomorphism}
+
+Before diving into the Curry-Howard-Lambek isomorphism that connects formal logic and typing systems, we quickly introduce type theory, as types have a special focus in Lean. [TO DO: CAN I SAY THAT LIKE THIS BC TYPES ARE FIRST CLASS CITIZENS ETC] \newline 
+Type theory is a mathematical framework that describes how values and computations are categorized into types. The central paradigm is that each object is assigned a type. Analogies to first-order logic  used to constrain a variable to a certain domain can be drawn. 
+[TO DO: EXAMPLE (FOR ALL X, IF X IN N THEN X >= 0). ]
+
+The implementation of type theory is realized using type-checking rules. The type checker tries to build  a proof tree using the typing rules to verify whether an expression is well-typed. The constructed proof-tree then describes a valid derivation of the typed expression. Type checking rules closely resemble inference rules in formal logic, which describe how logical statements are derived from axioms and premises. This connection leads to the observation of Curry, Howard and Lambek.
+[TO DO: Add AND-introduction rule resembles an TUPLE-introduction in a functional programming e.g Haskell. ] 
+
+The Curry-Howard-Lambek isomorphism describes the connection between logical proofs and computational programs based on the observation that formal logical systems resemble type systems in programming languages. The expressiveness of a formal logic dictates the complexity of the corresponding type system. More expressive logics require richer type systems to encode their proofs. Logic is mapped to type theory and reverse, in detail, the isomorphism is established between: (TO DO: ADD ILLUSTRATION USING THE RULES)
+
+propositions in formal logic $\leftrightarrow$  types in programming languages
+proofs of these propositions $\leftrightarrow$  programs in a functional programming language 
+
+It follows that proving a mathematical theorem is isomorphic to defining a term with the corresponding type in a programming language based on the Curry-Howard-Correspondence. [TO DO: UNSURE HOW TO SAY THIS] This paradigm has influenced Lean, which exhibits an explicit Proposition type, where proofs are terms of these types. This enables Lean as a system where both program “definitions” and the derivation and construction of their formal proofs coexist within the same framework and language.
+
+After giving an intuition about theorem proving, in the following chapter, we will introduce the Lean theorem prover and programming language in more depth. We will first discuss Lean’s foundational aspects before diving into the formalization of proofs in Lean. The chapter aims to provide an introduction to Lean, sufficient to understand the work with Lean presented in this thesis.
+
+\section{Lean} 
+        \subsection{Terms and Tactics} 
+\subsection{BitVectors} 
+Bitvectors, finite sequences of bits, are foundational when verifying compiler backends or other architectures relying on fixed-bit vector operations. In compilers, bit vectors, usually of small width between 32 to 64 bit, are used to model signed or unsigned integer operations in intermediate representations e.g LLVM-IR or in machine code. A finite-width machine register consists of a fixed number of bits, making it naturally representable as a bit vector. ISA instructions operate on these registers using e.g. arithmetic and logical, operations, all of which can be modeled using operations on bit vectors. We will therefore leverage bit vectors in Lean to model our machine registers.
+
+Lean, making use of its dependent type theoretical feature, has a built-in type for bit vectors of fixed length n providing efficient operations such as bitwise manipulations, shifts, and arithmetic operations. 
+Due to the special support of natural numbers in the Lean kernel, bit vectors (BitVec w) in Lean are implemented as a natural number n with a corresponding proof of n < 2\^n. This enables the reduction of bit vector reasoning onto the natural numbers and integers, whose computations are fast in Lean.
+
+In the following snippet, we declared a 32-bit and a w-bit bit vector in Lean, where {} imply implicit inference of the variables whereas explicit arguments are enclosed by (). Whether a bit vector is interpreted as signed or unsigned depends on the bit-vector operation used. 
+
+Lean supports a library of bit vector operations and theorems for proving operations on bit vectors.  Our work will leverage this existing effort and use proven bit vector theorems for our proofs as well as establish new bit vector theorems and suggestions to proof them. 
+
+For automated reasoning about bit vectors, a recently published project, implemented, bv\underline decide, a tactic and decision procedure in Lean that offers support through automation.  We will introduce it in the next chapter. 
+
+
+        \subsection{SMT solvers and proof automation}
+		\subsection {BV\underline decide}
+\section {Verified Instruction Selection} 
+Traditionally instruction selection is a lower-end stage during a compilation process, responsible for translating intermediate representations of code into architecture-specific machine instructions. The primary goal of instruction selection is to generate semantically equivalent machine code while optimizing for some factors such as execution efficiency or instruction count.  
+
+Commonly instruction selection operates on an intermediate representation, such as LLVM IR, and applies a series of transformations to map high-level operations to selected machine instructions. The mapping is non-trivial, as a single IR operation can be implemented using multiple assembly instruction sequences and depends on the target architecture. In compiler frameworks like LLVM instruction selectors are based on a pattern matching mechanism. Using predefined pattern-matching rules IR instructions get systematically matched and rewritten into machine code.  Other graph or decision-tree based implementations also exist.
+
+Given that compiler correctness directly impacts the reliability of compiled programs, instruction selection must preserve the semantics of the source code in its IR representation. Therefore the verification of an instruction selection is significant where formal guarantees about code transformation are required. In our implementation, Lean will be employed to model and verify this translation process mathematically. By defining formal semantics for both the IR and the target ISA, theorem proving will provide rigorous correctness guarantees for instruction selection. 
+In the following subsection we will introduce LLVM IR and ARM , source and target language of our instruction selection pipeline, and their semantics, which needs to be defined to construct proofs using Lean.
+
+\subsection{LLVM IR} 
+LLVM IR is a compiler immediate representation language that is SSA and is part of open-source compiler project called LLVM. LLVM
+\subsection{ARM} 
+\subsection{Peephole Optimizations} 
+
+Peephole optimization is a fundamental technique employed in modern compilers like GCC and LLVM. Short sequences of instructions are analyzed and transformed to produce equivalent but more optimal sequences. This process enables to minimize instruction count and improve execution speed of machine code. Traditionally peephole rewriting is implemented as a pass in the compiler backends, working on low-level machine code.  It is based on find and replace patterns, where the compiler pattern matches on the find pattern and replaces it with the corresponding replace pattern. [TO DO SOURCE NR 3 IN PEEK PAPER]  As these rewrites focus on the lower stage of the compiler toolchain, often operating  on assembly code,  architectural details can be exploited.  In our  verified instruction selection pipeline and verified  peephole rewriting pass,  we must prove that replacing the find patterns with their replacement doesn’t affect program semantics. Similar efforts have been made for CompCert where Peek, a formally verified peephole optimization framework, was developed and proven in Coq. Our translation pass will leverage insight gained in Peek but use Lean as the underlying theorem prover, which allows our software to be fully within Lean and benefit from its automation.
+
+\noindent
+\begin{minipage}{0.6\textwidth}
+\begin{lstlisting}[language=Python, caption=unoptimized]
+int check(int x) {						        
+	if (x == 0) return 0; 					
+    else return x;
+}
+\end{lstlisting}
+\end{minipage}
+\hfill
+\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}[language=C, caption= optimzed assembly]
+check: 
+    mov r0, r0
+}
+\end{lstlisting}
+\end{minipage}
+
+
+\section {Semanctics}
+

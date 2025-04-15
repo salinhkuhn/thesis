@@ -61,11 +61,11 @@ The bv\_decide tactic operates by processing the proof goal on multiple levels b
 
 \textit{Bitblasting}: A verified bitblasting algorithm is then used to convert the reified bit-vector expression into an And-Inverter Graph (AIG), a data structure commonly used to efficiently represent Boolean circuits. This transformation reduces the high-level bit-vector goal to a low-level Boolean SAT problem. Finally, the AIG is translated into a conjunctive normal form (CNF) formula.
 
-\textit{External Solving}: The CNF formula is sent to an external SMT solver to produce a UNSAT certificate that shows the CNF formula is not satisfiable, else it provides a counterexample.
+\textit{External Solving}: The CNF formula is sent to an external SMT solver, which attempts to produce an UNSAT certificate demonstrating that the formula is unsatisfiable. If the formula is satisfiable instead, the solver returns a counterexample.
 
-\textit{Certificate Reflection}: If the SMT solver proves the goal unsatisfiable (UNSAT), the UNSAT certificate is imported back into Lean and the proof that arrived at the UNSAT certificate is checked within Lean.
+\textit{Certificate Reflection}: If the SMT solver proves the formula is unsatisfiable (UNSAT), it returns an UNSAT certificate, which is imported back into Lean. The certificate is then checked within Lean ensuring that the unsatisfiability result is trustworthy and fully formalized.
 
-\textit{Proof Construction}: Finally, the verified UNSAT proof is used to construct a formal Lean proof of the original goal. Since the negation of the goal is shown to be unsatisfiable, the original goal logically follows. All previous proof steps are chained together to conclude the proof.
+\textit{Proof Construction}: Finally, the verified UNSAT certificate is used to construct a formal Lean proof of the original goal. Since the conjunction of the assumptions and the negation of the goal has been shown to be unsatisfiable, it logically follows that the original goal must be true. All previous proof steps are composed to conclude the overall proof.
 
 Invoking the whole bv\_decide procedure to solve bit vector proof goals in Lean is illustrated below.
 \begin{lstlisting} [language=python, caption= Discharging bit vector proof goal using bv\_decide]

@@ -9,7 +9,7 @@ This chapter will give the background needed to understand the core work of this
 \section{Lean4 Foundations} 
 \subsection{Bit Vector Support in Lean: BitVec and bv\_decide} 
 \textbf{Bit Vectors in Lean:}
-Bitvectors are fixed-width binary sequences that provide a mathematical abstraction for modeling machine-level data representation. A bitvector of width $w$ formally represents an element from the set $\{0, 1, \ldots, 2^w - 1\}$, which corresponds to the possible values that can be stored in a $w$-bit register. This representation is foundational in formal verification of hardware designs, instruction set architectures, and low-level software systems like compilers where bit vectors e.g enable reasoning about register operations. The Lean theorem prover supports reasoning about finite bit vectors through the \textit{BitVec} type, which represents a natural number \textit{n} with a proof that \( n < 2^w \). Specifcally \textit{BitVec} is implemented as "a wrapper around \textit{Fin} with a suitable bound". In Lean, the type \textit{Fin n} represents the finite set of natural numbers strictly less than n. An element of type \textit{Fin n} consist of a natural number \textit{val}, and a proof that \textit{val \( < \) n}. Both \textit{Fin} and  \textit{BitVec} exemplify Lean's dependent typing capabilities, as their type definitions depend on a value (the upper bound n or width w, respectively). \textit{Fin} itself is built upon \textit{Nat} (natural numbers), which have strong support in Lean's kernel.
+Bitvectors are fixed-width binary sequences that provide a mathematical abstraction for modeling machine-level data representation. A bitvector of width $w$ formally represents an element from the set $\{0, 1, \ldots, 2^w - 1\}$, which corresponds to the possible values that can be stored in a $w$-bit register. This representation is foundational in formal verification of hardware designs, instruction set architectures, and low-level software systems like compilers where bit vectors e.g enable reasoning about register operations. The Lean theorem prover supports reasoning about finite bit vectors through the \textit{BitVec} type, which represents a natural number \textit{n} with a proof that \( n < 2^w \). Specifcally \textit{BitVec} is implemented as "a wrapper around \textit{Fin} with a suitable bound". In Lean, the type \textit{Fin n} represents the finite set of natural numbers strictly less than n. An element of type \textit{Fin n} consist of a natural number \textit{val}, and a proof that \textit{val \( < \) n}. Both \textit{Fin} and  \textit{BitVec} exemplify Lean's dependent typing capabilities, as their type definitions depend on a value (the upper bound n or width w, respectively). \textit{Fin} itself is built upon \textit{Nat} (natural numbers), which have strong support in Lean's kernel.\newline
 
 
 \begin{lstlisting} [language=Lean, caption= bit vector represenation in Lean]
@@ -27,7 +27,8 @@ val, including a proof that n < 2^w.
  The design choice of wrapping the implementation of \textit{BitVec} around \textit{Fin} and \textit{Nat} allows for efficient reasoning about bit vectors by leveraging Lean's optimized natural number operations while maintaining the formal constraint of boundedness through dependent typing.
 In compiled code, the representations of \textit{Fin, BitVec}  and \textit{Nat} are indistinguishable and efficient, leaving only the underlying natural number representation.
 
-\noindent
+
+
 \begin{lstlisting} [language=Lean, caption= Example of defining a Fin in the range of 0 to 31 with value 19 in Lean]
 def exampleFin : Fin 32  :=  <19 , by simp [Nat.reduceLT]>
 \end{lstlisting}

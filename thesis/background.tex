@@ -69,7 +69,8 @@ The bv\_decide tactic operates by processing the proof goal on multiple levels b
 
 Invoking the whole bv\_decide procedure to solve bit vector proof goals in Lean is illustrated below.
 \begin{lstlisting} [language=python, caption= Discharging bit vector proof goal using bv\_decide]
-theorem bv_add_comm {w : Nat} (a b : BitVec w) : BitVec.add a b 
+theorem bv_add_comm {w : Nat} (a b : BitVec w) : 
+BitVec.add a b 
     = BitVec.add b a := by
   bv_decide
 

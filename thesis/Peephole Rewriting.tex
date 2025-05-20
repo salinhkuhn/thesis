@@ -1,0 +1,16 @@
+\chaptre {Peephole Rewriting Pass}
+After a LLVM IR program passes the instruction selection pipeline, they code can contain inefficient introduced due to the lowering. Lowering from target independent LLVM IR into a targrt-agnostic machine language also provides new capabilities to use the target specific instructions and their semantics to leverage optimization capabilities. 
+
+To optimize our code produced by the instruction selector, we have implemented peephole rewrites that are employed in the GCC backend and operate both on GCC's high-level and lower-level IR. Our implementation covers all the peephole rewrites defined in the gcc match.pd file which is consumed by the GGC code generator to output pattern-matching code for GCC high- and low-level IR. 
+
+
+
+
+
+
+
+
+
+
+
+

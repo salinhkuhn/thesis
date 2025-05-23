@@ -32,7 +32,7 @@ Compilers are complex pieces of software that transform source code written in h
 \begin{figure}[ht]
 \centering
 \begin{minipage}{0.45\textwidth}
-\tinytiny % or \scriptsize
+% \tinytiny % or \scriptsize
 \begin{lstlisting}
 define i32 @add_unoptimized() {
 entry:
@@ -43,7 +43,7 @@ entry:
 \end{minipage}
 \hspace{0.05\textwidth}
 \begin{minipage}{0.45\textwidth}
-\tinytiny
+% \tinytiny
 \begin{lstlisting}
 define i32 @add_optimized() {
 entry:
@@ -74,7 +74,7 @@ At the core of the LLVM project is its intermediate representation, LLVM IR, whi
 
 \begin{figure}[htbp]
   \centering
-  \includegraphics[scale=0.4]{thesis/llvm.png}
+  \includegraphics[scale=0.4]{llvm.png}
  
   \caption{The LLVM compiler infrastructure centered around LLVM IR}
   \label{fig:your-label}

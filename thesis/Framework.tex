@@ -1,0 +1,187 @@
+\chapter{Framework Set-Up}
+This chapter describes the infrastructure used to model our instruction selection and optimization pass. We begin by modeling RISC-V as dialect within the Lean-MLIR project and leveraging the existing LLVM IR dialect. Next, we present the hybrid RISC-V and LLVM IR dialect and explain its relevance to our instruction selection approach. We then introduce the verified tools that allow us to apply formally verified transformations to LLVM IR programs. Finally, we state our overall correctness theorem.
+
+\section{RISC-V dialect\& semantics}
+\subsection{ RISC-V semantics from Sail}
+
+\section{LLVM IR dialect\& semantics}
+
+Lean-MLIR provides an LLVM IR dialect model in Lean that mirrors the arithmetic fragment of LLVM IR. The instructions are encoded as operations within the LLVM IR dialect, which mirrors the MLIR LLVM IR dialect and can be instantiated with any bit vector width allowed by the LLVM language reference. Additionally, Lean-MLIR provides the framework to assign a semantic denotation to each operation, thereby modeling the semantics of the LLVM IR dialect. The LLVM IR dialect model in Lean, which we leverage, supports the following LLVM IR in figure XY, including the overflow flags nsw, nuw, and the exact flag. 
+
+When the nsw (no signed wrap) and nuw (no unsigned wrap) flags are set, signed and unsigned overflows are considered poison. The exact flag, which is supported for certain operations in LLVM, indicates whether rounding or shifting behavior should be treated as a special value, called \textit{poison} (see chaptre bellow), if the computation is not exact, meaning a non-zero rounding or e.g. a reminder for division is present.
+$[TO DO: figure of LLVM IR instructions in Lean-MLIR]$
+
+The Lean-MLIR framework provides a parser in Lean which allows users to provide a LLVM IR program written in a MLLIR-generic syntax (see figure XY), which then parsers it into the Lean internal representation, where each program is defined as a sequences of well-typed computations and expression. An LLVM IR dialect program can be modelled as shown in figure XY. This enables users to write LLVM IR dialect seuqences in the Lean using syntax that they are familiar with from MLIR compiler developement. 
+
+\begin{figure}
+\begin{minipage}{1\textwidth}
+\begin{lstlisting}
+def example_llvm_function := [llvm|
+{
+^0(%arg317 : i32):
+  %0 = llvm.mlir.constant(1 : i32) : i32
+  %1 = llvm.shl %0, %arg317 : i32
+  %2 = llvm.and %1, %0 : i32
+  "llvm.return"(%2) : (i32) -> ()
+}
+   
+\end{lstlisting}
+\end{minipage}
+\caption{semantics of LLVM IR shl instruction defined by Lean-MLIR}
+\label{fig:LLVMIR-SEMANTICS-SHL}
+\end{figure}
+\subsection{LLVM IR semantics}
+The LLVM IR dialect in Lean-MLIR models the LLVM IR semantics using the bit vector domain in Lean. To faithfully represent the language constructs supported in LLVM IR, the semantics use a dedicated \textit{PoisonOr} structure that is either a bit-vector value or a poison value, which underlying is modeled as a monadic \textit{none}. This distinction is crucial, as the LLVM semantics exhibit undefined behavior that must be taken into account during the lowering of a program and require careful reasoning when defining correctness of a lowering from LLVM IR. (more on this in a chapter XY). 
+Below are examples on how the semantics for an LLVM IR instruction is defined within Lean-MLIR. Each instruction is modeled as an operation on a dependently typed bit vector \textit{IntW w}, which describes a bit vector of width \textit{w}.
+
+%def lshr {w : Nat} (x y : IntW w) (flag : ExactFlag := {exact := %false}) : IntW w := do
+  %let x' ← x
+  %let y' ← y
+  %if flag.exact ∧(x' >>> y') <<< y' ≠ x' then
+    %.poison
+  %else
+    %lshr? x' y'
+   
+\begin{figure}
+\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}
+def lshr? {n} (op1 : BitVec n) (op2 : BitVec n) : IntW n :=
+  if op2 >= n
+  then .poison
+  else .value (op1 >>> op2)
+\end{lstlisting}
+\end{minipage}
+\caption{semantics of LLVM IR shl instruction defined by Lean-MLIR}
+\label{fig:LLVMIR-SEMANTICS-SHL}
+\end{figure}
+
+\textbf{Undefined Behaviour in LLVM IR and its Lean-MLIR model }[TO DO: still have not understood everything]
+
+LLVM IR defines two forms of undefined behavior (UB), which are distinguished by their origin and how they are treated by the compiler. Immediate undefined behavior is the strictest form and represents operations that typically result in a trap at runtime on most processors supported by LLVM, e.g., division by zero. When immediate UB occurs in an LLVM IR program the compiler is not required to preserve any of its observable behavior and in many cases it can lead to the program crashing or throwing an exception [llvm language reference]. Conceptually it allows for very aggressive optimizations where the semantics of the program don't need to be preserved because of UB.
+
+In contrast, LLVM IR also defines a model known as deferred UB, which contains \textit{undef} values and \textit{poison} values. Deferred UB involves operations where the result is not well-defined by the language, but executing the operation itself might not immediately crash the program. Deferred UB differs from immediate UB in that the compiler is permitted to speculate about their semantics and continue execution and optimization. According to the LLVM language reference deferred UB should be used for operations where the semantics across processors differ but do not cause a CPU trap. Therefore, a \textit{ undef} or \textit{poison} value indicates that LLVM does not assign precise semantics to the corresponding operation. This design choice gives the compiler a way to indicate that an operations is mathematically not well-defined but has an implementation on machine architectures e.g  shifting by a value greater than the bit width of the operand. The shift operation in figure XY resolves to a poison value, depending on the processor architecture this then resolves to a concrete value. This means that the compiler can proceed with the code execution speculating about the concrete value.
+\begin{figure}
+\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}
+define i32 @poison_shift(i32 %arg) {
+  %mask = and i32 %arg, 31
+  %shift = shl i32 %arg, %mask
+  ret i32 %shift
+}
+     }
+\end{lstlisting}
+\end{minipage}
+\caption{Shift resulting in a poison value.}
+\label{fig:LLVMIR-SEMANTICS-SHL}
+\end{figure}
+
+This allows for optimizations like hoisting operations out of loops that would otherwise be impossible due to the potential for undefined behavior at the point where the hoisted operation is executed. LLVM defines certain operations, such as branching or division by zero, where an input with deferred UB is converted into immediate UB for the program. 
+Thus, if such an instruction completes successfully, we implicitly know that none of its inputs exhibited UB else immediate UB would have been indicated. In addition to poison values, which propagate through instructions (e.g., an add on a poison value again resolves to poison) there are \textit{undef} values.[john Regehr paper taming ub in llvm ] These can be mentally modeled as reading from uninitialized memory, where each access may yield a different result.
+\begin{figure}
+\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}
+define i64 @divzero(i64 %arg) {
+    entry:
+      %0 = div i64 %arg undef
+      ret %0
+}
+     }
+\end{lstlisting}
+\end{minipage}
+\caption{Deffered UB in div resolves to immediate UB}
+\label{fig:LLVMIR-SEMANTICS-SHL}
+\end{figure}
+
+\begin{figure}
+\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}
+define i64 @add_eq?_shl(i64 %arg) {
+    entry:
+      %0 = add i64 %arg %arg
+      %1 = shl i64 %arg , 2
+      ret icmp eq %0 %1
+     }
+\end{lstlisting}
+\end{minipage}
+\caption{LLVM IR function}
+\label{fig:LLVMIR-SEMANTICS-SHL}
+\end{figure}
+
+To the reader as well as to developers, it might seem obvious that this equality check should evaluate to true. However, this does not hold. If the argument to the function is an undef value, each access might resolve to a different value. Additionally, if the argument is poison, the poison value will taint \textit{\%0} and \textit{\%1}, propagating poison to both.
+
+Overall, LLVM's undefined behavior can be modeled hierarchically, where \textit{undef} represents the weakest form of undefined behavior.
+
+\textit{\textbf{immediate  UB $\vartriangleright$ poison $\vartriangleright $ undef $\vartriangleright$ concrete value.}}
+
+In our work, we leverage the UB model as defined in Lean-MLIR, where no distinction is made between immediate UB and deferred UB; both are modeled using poison values. The instructions within the LLVM IR  fragment modelled in Lean-MLIR and used in this thesis that produce immediate UB are the division and reminder operation. for the LLVM IR optimization pass we therefore manullay check that the rewrite only triggers UB if the original instruction sequences does. For lowering the instructions we follow LLVM's approach as described in Chaptre 5.  Current efforts on Lean-MLIR  work refining the handling of UB. Adapting our current UB model to support more precise UB handling would not pose a significant challenge because, looking at the UB value lattice, an immediate UB can be replaced by a poison value. Especially for code generation, lowering an immediate UB to the same as a poison value is allowed. Besides that, the UB model does not affect the core contributions of this thesis. (see section where define correctness statement).
+\section{Hybrid Dialect: LLVM IR and RISC-V}
+
+
+\section{Verified Peephole Rewriting Infrastrucutre }
+Instruction selection and code optimizations are crucial program transformations, and each transformation can conceptually be formalized as a rewrite. Lean-MLIR provides a peephole rewriter that applies a single rewrite rule to sequences of computations and expressions derived from an input LLVM IR program. When the rewriter successfully applies a rewrite, the accompanying correctness proof ensures that the program's semantics are preserved.
+Originally, the rewriting infrastructure in Lean-MLIR supported only a single peephole rewrite. We extended this infrastructure to support the application of a sequence of rewrites. The extended rewriter can process a dependently typed list of optimization patterns and iterate over an input program by attempting to apply each rewrite in the list.
+The design of the Lean-MLIR rewriter supports pattern matching along the use-def chain. This means that a rewrite rule defined by a "find" pattern and its corresponding "replace" pattern can still match even if unrelated instructions are interleaved. This capability allows transformations to operate beyond strictly sequential instruction blocks, enabling more flexible and powerful rewrites.
+By extending the peephole rewriter to handle multiple rewrites and leveraging its existing strengths, we have a framework capable of supporting and applying a set of optimization patterns.
+To guarantee the correctness of the extended peephole rewriter, we provided an inductive proof next to the rewriter showing that the rewriter preserves the correctness guarantees of the applied transformations. If a rewrite represents a refinement, then the transformation preserves refinement; if it preserves semantics exactly, then the rewriter does so as well.
+
+%\begin{figure}
+%\begin{minipage}{\textwidth}
+%\begin{lstlisting}
+%lemma denote_foldl_rewritePeepholeAt
+  %(prs : List (Σ Γ, Σ ty, PeepholeRewrite d Γ ty)) (ix : ℕ) (target : %Com d Γ₂ eff t₂) :
+    %(prs.foldl (fun acc ⟨_Γ, _ty, pr⟩=> rewritePeepholeAt pr ix acc) %target).denote = target.denote := by
+  %induction prs generalizing target
+  %case nil =>
+   % simp
+ % case cons prog rest ih =>
+    %let ⟨Γ, ty, pr⟩ := prog
+    %simp only [List.foldl]
+    %have h : (rewritePeepholeAt pr ix target).denote = target.denote %:=
+      %denote_rewritePeepholeAt pr ix target
+    %let mid := rewritePeepholeAt pr ix target
+    %have h' := ih mid
+    %rw [←h'] at h
+    %exact h
+%\end{lstlisting}
+%\end{minipage}
+%\caption{LLVM IR function}
+%\label{fig:LLVMIR-SEMANTICS-SHL}
+%\end{figure}
+
+
+\section{Correctness Statement}
+In this subsection we describe the correctness we claim for our instruction selection and RISC-V peephole optimization pass.
+\subsection{Refinement}
+When applying program transformations, such as program lowering or optimization, there is a relationship between the behavior of the original program and the resulting transformed program. While one could require equivalence between the behavior of the original and transformed program, this is not always practical, since languages like LLVM IR model undefined behavior (UB). A program with UB does not have a single defined behavior, and moreover, target architectures like RISC-V do not support UB in the same way. Real hardware executes instructions and does not track UB. As a result, transformations must often resolve undefined behavior to specific, concrete behavior in the target architecture. Therefore equivalence i is too strong a requirement. The key criterion for the correctness of a compiler is that every transformation performed is a refinement. Refinement means that the resulting program exhibits a subset of the behavior of the original program. In many cases, refinement simplifies to equivalence, but there are situations where the transformation is not reversible, as the new program permits only a subset of the original program's behavior. As indicated, such refining transformations in LLVM usually involve UB. An example encountered during our implementation is illustrated below. We refine an LLVM add instruction, which resolves to a poison value on signed or unsigned overflow into a RISC-V hardware addition, which produces a concrete result for all possible inputs where the result is reduced \textit{mod 64}. As shown in the example, the transformation includes unrealized conversion casts (to do: refer to the chapter) at the beginning and end, while the actual RISC-V lowering logic is placed in between.
+Overall, we ensure that every transformation in our work is a refinement.
+\begin{figure}
+\begin{minipage}{\textwidth}
+\begin{lstlisting}
+def add_llvm_nsw_nuw_flags := [LV| {
+   ^entry (%lhs: i64, %rhs: i64):
+    %1 = llvm.add %lhs, %rhs overflow<nsw,nuw> : i64
+    llvm.return %1 : i64
+  }]
+\end{lstlisting}
+\end{minipage}
+\caption{LLVM IR add with nsw and nuw flags.}
+\label{fig:LLVMIR-SEMANTICS-SHL}
+\end{figure}
+
+\begin{figure}
+\begin{minipage}{\textwidth}
+\begin{lstlisting}
+def add_riscv := [LV| {
+  ^entry (%lhs: i64, %rhs: i64):
+    %0 = "builtin.unrealized_conversion_cast" (%lhs) : (i64) -> (!i64)
+    %1 = "builtin.unrealized_conversion_cast" (%rhs) : (i64) -> (!i64)
+    %2 = add %0, %1 : !i64
+    %3 = "builtin.unrealized_conversion_cast" (%2) : (!i64) -> (i64)
+    llvm.return %3: i64
+  }]
+\end{lstlisting}
+\end{minipage}
+\caption{Lowering for the LLVM IR add nsw nuw to RISC-V add instruction}
+\label{fig:LLVMIR-SEMANTICS-SHL}
+\end{figure}
+

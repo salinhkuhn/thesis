@@ -27,12 +27,12 @@
 }
 \chapter{Introduction}
 
-Compilers are complex pieces of software that transform source code written in high-level programming languages into machine code tailored for specific hardware architectures. During compilation, various optimizations are applied to improve code performance on the target platform. Today, production compilers are typically large-scale, open-source projects consisting of hundreds of thousands of lines of code that contributed by an active developer community. Optimization passes in compilers range from simple local transformations (Figure 1.1)  to sophisticated global analyses, including inter-procedural optimizations and loop transformations. These optimizations are typically driven by performance heuristics and are implicitly assumed to preserve the program semantics. However, they do not exhibit formal guarantees that they preserve program behavior in all cases. 
+Compilers are complex pieces of software that transform source code written in high-level programming languages into machine code tailored for specific hardware architectures. During compilation, various optimizations are applied to improve code performance on the target platform. Today, production compilers are typically large-scale, open-source projects consisting of hundreds of thousands of lines of code that are contributed by an active developer community e.g. the LLVM compiler project. Optimization passes in compilers range from simple local transformations [\ref{fig:intro_compiler_optimization_example}] to sophisticated global analyses, including interprocedural optimizations and loop transformations. These optimizations are typically driven by performance heuristics and are implicitly assumed to preserve the program semantics. However, they do not exhibit formal guarantees that they preserve program behavior in all cases. 
 
 \begin{figure}[ht]
 \centering
 \begin{minipage}{0.45\textwidth}
-\tinytiny % or \scriptsize
+\label{fig:intro_compiler_optimization_example}
 \begin{lstlisting}
 define i32 @add_unoptimized() {
 entry:
@@ -43,12 +43,10 @@ entry:
 \end{minipage}
 \hspace{0.05\textwidth}
 \begin{minipage}{0.45\textwidth}
-\tinytiny
 \begin{lstlisting}
 define i32 @add_optimized() {
 entry:
   ret i32 5
-  
 }
 \end{lstlisting}
 \end{minipage}
@@ -57,31 +55,54 @@ entry:
 \end{figure}
 
 Although compiler optimizations traditionally aim to maximize runtime performance, they can introduce miscompilation bugs. In such cases, the compiled code no longer preserves the intended semantics of the source program, causing unexpected behavior at runtime.
+\begin{figure}
+\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}
+to do insert miscompilation example and its consequences
+\end{lstlisting}
+\end{minipage}
+\caption{simple constant folding compiler optimization}
+\label{fig:llvm-constant-folding}
+\end{figure}
 
-Compilation bugs arise from mistakes in the implementation of the compiler itself or from the lack of formal semantics for the source and target languages. This lack of formal semantics introduces ambiguity about what constitutes correct behavior, effectively granting compiler developers implicit freedom in interpreting the semantics of their optimizations. Consequently, this can lead to inconsistencies in the generated machine code for the same input program across different compilers.
 
-In order to address these issues, various research projects have explored the development of fully formally verified compilers that provide correctness guarantees for their code. A prominent example is CompCert, the fully verified compiler for the C programming language, which ensures that the semantics of the source program are preserved during compilation. Verified compilers like Comp Cert demonstrate the possibility of building trustworthy compiler pipelines especially in settings where correctness is essential.  
+Compilation bugs arise from mistakes in the implementation of the compiler itself or from the lack of formal semantics for the source and target languages. The lack of formal semantics, which define the meaning of each language construct in a precise, mathematical manner, introduces ambiguity about what constitutes correct behavior. This effectively grants compiler developers implicit freedom in interpreting the semantics of their optimizations. Consequently, this can lead to inconsistencies in the generated machine code for the same input program across different compilers.
+\begin{figure}
+\begin{minipage}{0.45\textwidth}
+\begin{lstlisting}
+to do insert example 
+\end{lstlisting}
+\end{minipage}
+\caption{Formal semantics of the XY instruction }
+\label{fig:llvm-constant-folding}
+\end{figure}
 
-However, fully formally verified compilers typically support only a limited subset of the optimizations and analyses available in their non-verified counterparts. This is partially due to the manual effort required to implement the corresponding proofs. CompCert includes 8 optimization passes and does not support loop transformations, whereas LLVM provides over 20 loop-specific optimization and analysis passes alone. [https://www.absint.com/factsheets/factsheet
-\_compcert\_c\_web.pdf]
-[based on -opt -print-passes]
+In order to avoid these issues, various research projects have developed fully formally verified compilers that provide correctness guarantees for their code. An example is CompCert, the fully verified compiler for the C programming language, which ensures that the semantics of the source program are preserved during compilation. Verified compilers like CompCert demonstrate the possibility of building trustworthy compiler pipelines but their extra verification burden makes them challenging to develop and adapt. 
 
-The design of verified compilers is often monolithic, making it difficult to extend the compiler infrastructure with new optimization patterns. As a result, they hardly adapt to the fast pace of modern compiler development. In addition, they are typically developed as independent, standalone, and complex projects. This makes them less accessible and not part of the day-to-day tooling familiar to compiler engineers, who expect flexibility and extensibility in today's compiler design.
+Fully formally verified compilers typically support only a limited subset of the optimizations and analysis available in their non-verified counterparts. "Adding optimizations is limited by the effort required to verify them", as stated in a CompCert publication. CompCert includes 8 optimization passes and does not support loop transformations e.g merging two adjacent loops with the same bounds into one, whereas LLVM provides over 20 loop-specific optimization and analysis passes alone.\cite{compcert} 
 
-LLVM (Low-Level Virtual Machine) is a widely used open-source compiler infrastructure framework that serves as the middle and backend of compilers for  modern programming languages, including Rust and Lean. Its strengths are its modular and extensible design. [Quote llvm doc page]
+Additionally, due to the high proof effort, verified compilers are often designed in a monolithic fashion. This is because developing a fully end-to-end verified compiler typically requires tightly coupling the compilation stages to construct a correctness proof that spans the entire pipeline. This makes it difficult to introduce new optimization patterns without modifying core verification components.
+%[https://www.absint.com/factsheets/factsheet
+%\_compcert\_c\_web.pdf]
+%[based on -opt -print-passes]
+%to pass 
+Hence, while verified compilation projects do exist, they often struggle to keep up with the rapid pace of modern compiler development. This is largely due to the need for manual proofs, which not only slows down development but also leads to rigid designs that make adding new optimizations labor intensive. The high proof burden therefore discourages modularity and flexibility. This is in contrast to mainstream unverified compilers, where developers contribute new patches on a daily basis.
 
-At the core of the LLVM project is its intermediate representation, LLVM IR, which enables language-agnostic optimization by abstracting away the specific features of source languages. Programs are first translated into the uniform, high-level, assembly-like LLVM IR, which then can be optimized in an iterative manner by applying passes. These passes are either predefined within LLVM or supplied by the user. By implementing a frontend that lowers source code to LLVM IR, compiler developers can immediately take advantage of LLVM's powerful infrastructure. This  simplifies backend generation and makes LLVM an attractive foundation for building new compilers.
+%Moreover, they are typically developed as standalone, complex projects targeting a narrow niche audience e.g. CompCert. This %disconnects them from compiler engineers, who rely on flexible and extensible infrastructure in their day-to-day work in %compiler design.
+
+ LLVM (Low-Level Virtual Machine) is a widely used open-source compiler infrastructure framework that serves as the middle and backend of compilers for modern programming languages, including Rust and Lean. It's strengths are its modular and extensible design.(Chaptre 1) [Quote llvm doc page]
+
+At the core of the LLVM project is its intermediate representation (IR), LLVM IR, which enables language-agnostic optimization by abstracting away the specific features of source languages. While the concept IR's is common in compiler design, LLVM IR has become a prominent and influential example. Programs are first translated into the uniform, high-level, assembly-like LLVM IR, which then can be optimized in an iterative manner by applying passes \ref{fig:intro_llvm}. These passes are either predefined within LLVM or supplied by the user. By implementing a frontend that lowers source code to LLVM IR, compiler developers can immediately take advantage of LLVM's powerful infrastructure. This makes LLVM an attractive foundation for building new compilers.
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[scale=0.4]{thesis/llvm.png}
- 
   \caption{The LLVM compiler infrastructure centered around LLVM IR}
-  \label{fig:your-label}
+  \label{fig:intro_llvm}
 \end{figure}
 
 Due to the current complexity and size of LLVM, full verification of the entire compilation toolchain is unlikely. At the same time, developers continuously discover bugs in LLVM. Because of its extensibility, a bug in LLVM can affect any language whose compiler relies on it and thereby compromise the correctness of compiled programs across multiple programming languages.
-In particular, LLVM is used in the compilation of Lean, which serves not only as a programming language but  as a theorem prover. In Lean, the compiler is employed in proofs by reflection, where a computation  executed, and the result is reflected back into a formal proof. The correctness of both the computation and the resulting proof thus hinge on the trustworthiness of the compiler. A bug in LLVM could therefore undermine the trustworthiness of the guarantees provided by these proofs. Similarly, the Rust compiler uses LLVM in its standard compilation pipeline.[quote andy talk] While verification efforts focus on ensuring safety and correctness at the Rust language level, once a program is lowered to LLVM IR, the correctness of the final machine code relies entirely on the reliability of the LLVM toolchain. This makes the LLVM ecosystem an interesting and important target for the application of formal methods and verification.
+For example, LLVM is used in the compilation of Lean, which serves not only as a programming language but as a theorem prover. In Lean (Chaptre 1), the compiler is part of its trusted codebase. There are scenarios where a computation is executed and its result is critically used within a formal proof, a technique known as proof by reflection. The correctness of both the computation and the resulting proof thus hinges on the trustworthiness of the compiler. A bug in the compiler could therefore undermine the trustworthiness of the guarantees provided by these proofs. Similarly, the Rust compiler uses LLVM in its standard compilation pipeline.[quote andy talk] While verification efforts focus on ensuring safety and correctness at the Rust language level, once a program is lowered to LLVM IR, the correctness of the final machine code relies entirely on the reliability of the LLVM toolchain. This makes compilers and especially the LLVM ecosystem an interesting and important target for the application of formal methods and verification.
 
 \begin{figure}[htbp]
   \centering
@@ -90,25 +111,17 @@ In particular, LLVM is used in the compilation of Lean, which serves not only as
   \label{fig:your-label}
 \end{figure}
 
-At the time of this thesis there exist verification efforts that target the LLVM ecosystem around LLVM IR e.g. the Alive2 project, which verifies optimizations employed in the LLVM InstCombine pass, an IR-to-IR optimizations pass. [Quote]
-Existing projects focus primarily on properties of the higher-level LLVM stack and rewrites within LLVM IR itself and do not focus on the lower ends. Meanwhile, backends and low-level assembly code transformation are known to be the most bug-dense compiler components. (quote peek paper). 
+At the time of this thesis, several verification efforts target the LLVM ecosystem, particularly around LLVM IR. For example, the Alive2 project verifies optimizations used in LLVM’s InstCombine pass, a peephole optimization pass for LLVM IR [Quote]. Peephole optimizations are small, local transformations that replace short sequences of instructions with semantically equivalent but more efficient alternatives [Quote: Peephole paper]. The size of LLVM's peephole rewriter which accounts  for  10\% of the IR-transforming codebase, emphasizes its significance within the LLVM toolchain [Quote: SSA paper].
+Similar to Alive2, most existing verification projects focus on higher-level components of the LLVM stack and transformations within LLVM IR. In contrast, few efforts target the lower levels of the LLVM compiler toolchain, such as instruction selection and backend code generation. Yet these lower-level components are known as error-prone parts of a compiler. In fact, the LLVM backend subdirectories comprise a million lines of C++ code, creating the opportunity for subtle bugs. A common feature of these verification efforts is their reliance on SMT solvers for proving correctness. While SMT solvers enable automated verification, correctness now hinges not on the compiler’s source code, but on the large codebase of the solver itself. The large codebase of SMT solvers e.g. Z3, the solver used in Alive, has historically been found to contain many bugs [reference: Alive2 paper, Z3 bugs]
 
-Therefore, to counteract this gap and with an eye towards integrating modular and extensible formal verification into the LLVM ecosystem, this thesis implements a pass from LLVM IR to RISC-V that applies verified instruction selection. Additionally, we implement a RISC-V peephole optimization pass as well as formally proven LLVM-IR optimizations. The experience and tooling gained during this implementation can be ported to other compiler components and passes.
+\textbf{Our approach:} To counteract these limitations, we propose a verified instruction selection pipeline and an RISC-V assembly peephole optimization pass for LLVM IR, implemented within an interactive theorem prover. Our approach resolves various problems mentioned above. Firstly, we model instruction selection as a collection of locally verified rewrite rules. This allows new patterns and therefore new instruction lowerings to be added with minimal effort and avoids the need to modify core verification infrastructure. This is in contrast to the monolithic designs seen in other verified compiler projects such as CompCert. Furthermore, our verification setup is designed to take advantage of proof automation for reasoning about the semantics of compiler IRs and low-level assembly instructions. We structure both our instruction selection and optimization passes to enable existing automation tools to discharge most proof obligations automatically. This allows developers to focus on writing new patterns, which are then automatically verified when correct, minimizing the proof burden typically encountered in verified compiler projects. By implementing an instruction selection pass and an RISC-V optimization pass, our work also redirects attention to the compiler backend. Compiler backends, especially within the LLVM ecosystem, have received little attention in formal verification efforts. We choose LLVM IR as our source language for our instruction selection not only because LLVM is known for its IR, but also because it serves as the foundation for many of today's compilers. 
 
-Our instruction selection pipeline lowers LLVM IR, under certain constraints on the input program, and translates it into RISC-V assembly targeting a 64-bit architecture. The scope of this thesis focuses on the pure arithmetic subset of LLVM IR instructions, including bitwise operations and integer arithmetic. We operate on legalized LLVM IR, and therefore restrict our attention to 64-bit instructions compatible with the RISC-V 64-bit target.
-[Note to self: it might be interesting to implement the legalization myself because atm this really restrict the programs I can modell, actually really want to change this]
-The design of our instruction selection pipeline as individual rewriting patterns emphasizes extensibility as it enables the addition of new instruction lowering patterns and optimizations without requiring users to engage or modify complex verified algorithms typical of other formal verification projects e.g CompCert. 
-Our proofs in Lean ensure that the generated machine code faithfully preserves the semantics of the original LLVM IR, including the handling of LLVM’s poison values [see Chapter: to do refer to the chaptre where I talk about poison values].
+We choose the Lean theorem prover as our verification infrastructure due to its minimal trusted codebase and strong support for proof automation. This small trusted base ensures that the correctness of our verified components depends only on a well-scoped codebase, unlike approaches that rely on large SMT solvers. Lean also offers powerful automation capabilities, particularly for bit-vector reasoning. This is crucial for our work, as the semantics of low-level assembly instructions are typically formalized using bit-vector operations.
 
-By additionally proposing a verified peephole optimization pass for the generated RISC-V machine code,  we introduce verified assembly-level optimizations in our work and eliminate potential inefficiencies introduced during instruction selection. Similarly, we implement a fully verified peephole rewriting pass for LLVM-IR, which has not been implemented yet. Peephole optimizations are small, local transformations that replace short sequences of assembly instructions with semantically equivalent but more efficient ones [quote Peephole paper]. The code size of the Peephole Rewritter in LLVM (10\% of the IR transforming code base) suggests their relevance within the LLVM toolchain. [quote SSA paper].
+Additionally, a formalization of the RISC-V instruction set architecture (ISA) exists in Lean. By selecting RISC-V as our target architecture, we are able to derive semantics directly from these mechanized models, which are officially accepted by RISC-V International. This provides strong correctness guarantees for our semantics, in contrast to approaches where ISA semantics are manually derived from online documentations.
 
-\textbf{Methodology}
-Motivated by the goal of implementing a formally verified instruction selection pass and peephole optimizations pass for LLVM IR and RISC-V in a flexible and modular manner, we use Lean-MLIR as the foundation for our work.
-
-Lean-MLIR is a project that provides the  \textit{Lean-MLIR(X)}  framework for modeling SSA-based compiler intermediate representations (IRs) within the Lean theorem prover. In Static Single Assignment (SSA) form, each variable is assigned exactly once, simplifying program analysis and transformation. Lean-MLIR enables rigorous formal reasoning about these IR's using Lean.
-
-MLIR, part of the LLVM ecosystem, is a compiler infrastructure that supports multiple domain-specific, SSA-based IR's (dialects) within a unified framework. This hybrid IR model allows different parts of a program to be represented at varying levels of abstraction, enabling optimizations to be applied where the most relevant semantic information is available. MLIR showcases the power of a modular IR design.
-
+Both Lean and its tooling are designed with scalability in mind, which is crucial for supporting large and evolving compiler verification efforts. Furthermore, the ongoing Lean-MLIR project provides a framework for modeling compiler intermediate representations (IRs) within Lean, which is the starting point of our work. Lean-MLIR explicitly allows to model MLIR dialects in Lean.
+MLIR, part of the LLVM ecosystem, is a compiler infrastructure that supports multiple domain-specific, SSA-based intermediate representations (dialects) within a unified framework. In Static Single Assignment (SSA) form, each variable is assigned exactly once, which simplifies program analysis and transformation. MLIR allows different parts of a program to be represented in different dialects, enabling multiple levels of abstraction within a single program. This flexibility allows optimizations to be applied at the level where the most relevant semantic information is available. Because an MLIR program can contain multiple dialects simultaneously, it is often referred to as a hybrid IR.
 \begin{figure}[ht]
 \centering
 \begin{lstlisting}[language=mlir, basicstyle=\ttfamily\small]
@@ -124,39 +137,42 @@ module {
 \label{fig:mlir-addition}
 \end{figure}
 
-We build on the existing LLVM IR dialect in Lean-MLIR and implement a custom RISC-V dialect, expressing the core of our instruction selection as a lowering transformation between these two dialects. To reason about the correctness of our instruction selection, we rely on precise formal semantics for both the source and target languages. Formal semantics assigns rigorous, mathematically defined meaning to each instruction, enabling us to reason about transformations in a mathematically rigorous manner using Lean. For LLVM IR, we leverage the existing semantic model provided by Lean-MLIR. For RISC-V, we rely on the formal specification developed in the Sail project, which mechanizes instruction set architectures in Sail, a domain-specific language. 
+Complementary to LeanMLIR efforts such as the development of a verified floating-point library further reinforce our choice of Lean, as these components are essential in future work on building a complete verified compiler backend.
 
-To implement our verified peephole optimization passes, we analyze and adapt patterns used in LLVM passes such as Inst Combine and DagCombine.
+Currently our instruction selection pipeline lowers LLVM IR—under specific constraints on the input program—into a RISC-V assembly dialect targeting a 64-bit architecture. If the source program conforms to the supported fragment of LLVM IR and our pass succeeds, the generated assembly code is guaranteed to exhibit behavior equivalent to that of the original LLVM IR program. We build on the existing LLVM IR dialect in Lean-MLIR and implement a custom RISC-V dialect, expressing the core of our instruction selection as a lowering transformation between these two dialects. To reason about the correctness of our instruction selection, we rely on precise formal semantics for both the source and target languages. Formal semantics assigns rigorous, mathematically defined meaning to each instruction, enabling us to reason about transformations in a mathematically manner using Lean. 
 
-For verification, we leverage and extend Lean’s native support for bit vector reasoning and its integration of bv\_decide, the first fully verified SMT solver embedded in a theorem prover. Compared to projects like CompCert, we aim for significantly more automation when reasoning about bit-level computations. 
 
-\textbf{Contributions }
+In addition, we introduce semantics-preserving assembly-level optimizations that eliminate potential inefficiencies introduced during instruction selection. This ensures not only correctness, but also performance improvements at the machine code level. To implement our verified peephole optimization pass, we analyze and adapt patterns used in compiler passes such as InstCombine and DagCombine, which are optimization passes within LLVM. [NOTE:That would be my plan]
+To visualization of the transformed code, we provide a command-line interface for our instruction selection pass, inspired by the LLVM optimizer. 
 
-By providing a verified instruction selection pass from a subset of LLVM IR to RISC-V 64-bit architecture, along with a subsequent peephole optimization pass, we propose a method for enabling trustworthy code generation from LLVM IR in its dialect form to Risc-V. By mechanizing our implementation in the Lean theorem prover, we achieve formal correctness guarantees and provide an example that can be adapted to other machine targets. For developers who prefer not to rely on the complex and opaque LLVM backend, our pass offers a formally verified alternative for lowering to machine code, while remaining seamlessly integrable into the LLVM ecosystem by modeling it as an applicable pass over the LLVM IR dialect. Our pipeline concretizes the rewrites typically hidden within multiple stages of the complex LLVM backends. Moreover, our design of modeling instruction selection as simple rewrites across two languages can be easily extended with new rewrites.
-Our peephole optimization pass for LLVM IR and RISC-V additionally implement new verified optimization passes.
+For verification, we leverage Lean’s novel and comprehensive bit-vector library, along with bv\_decide, the first fully verified SMT solver embedded in a theorem prover. Bv\_decide provides automation for fixed-width bit-vector expressions, which we use to automatically prove the correctness of our rewrite rules.
 
-In addition, we provide a command-line interface for our instruction selection pass, inspired by the LLVM optimizer. This interface allows developers to visualize the output of our pipeline and display the applied transformation.
-[NOTE: not yet working, unhappy with the printing, I am not yet sure if we can print Risc-V SSA properly.]
+\textbf{Contributions}
 
 Explicitly, we contribute the following:
 
-- Implement a RISCV-V dialect in Lean-MLIR which modells RISC-V assembly operations in Lean. The RISC-V dialect in Lean is given with proofs that the dialect exactly implement the semantics as specified by the Sail RISCV modell for 64-bit address space processors.
+\begin{itemize}
+\item {Implement a RISCV-V dialect in Lean-MLIR which models RISC-V assembly operations in Lean. The RISC-V dialect in Lean is given with proofs that the dialect exactly implement the semantics as specified by the Sail RISC-V model for 64-bit address space processors.}
 
-- Implement a LLVM and Risc-V hybrid dialect in Lean-MLIR, which allows to implement instruction lowerings as rewrites within the dialect including conversion cast analog to MLIR.
+\item {Implement a hybrid LLVM and RISC-V dialect in Lean-MLIR, enabling instruction lowerings as rewrite rules within the dialect, including cast conversions analogous to those in MLIR.}
 
-- Implement a legalization pass that converts LLVM IR with width ranging from 8 to 64-bits into legalized LLVM IR programs only operating on 64-bit values. 
-[Note: Lie, haven't implemented this but is part of the visiosn but I am not sure that this is even possible in Lean-MLIR atm. I want this because it allows me to lower all the alive test case]
+\item {Design and implement a verified instruction selection pass from the LLVM IR dialect (restricted to the pure arithmetic fragment) to a RISC-V SSA-style assembly dialect, using instruction selection patterns extracted from LLVM.}
 
--Design and implement a verified instruction selection pass from the LLVM IR dialect (pure arithmetic fragment) to the RISC-V SSA-assembly-style dialect with instruction selection patterns extracted from LLVM.
+\item {Implement a RISC-V peephole optimization pass that includes XY\% of the optimizations performed by the LLVM backends.}
 
-- Implement a RISC-V peephole optimization passes that includes XY\% of the optimizations performed by the LLVM backends.
-[Note: Lie at the moment because not implemented yet and I therefore cannot state how much we cover, I also am not sure how to extract all of that data yet since my instruction collection is limited]
+\item {Optimizer command line tool \textit{"opt"} for Lean, that processes LLVM IR files and allows to apply the instruction lowering pass and optimization passes by providing the corresponding flag.
+[Note: Also, it doesnt work yet because the input is not LLVM IR files but only regions in LLVM IR dialect style and not even all of the syntax is supported yet. I claim the previous opt tool used wrong MLIR syntax].}
 
-- Optimizer command line tool \textit{"opt"} for Lean, that processes LLVM IR files and allows to apply the instruction lowering pass and optimization passes by providing the corresponding flag.
-[Note: Also, it doesnt work yet because the input is not LLVM IR files but only regions in LLVM IR dialect style and not even all of the syntax is supported yet. I claim the previous opt tool used wrong MLIR syntax].
+\item {Implement register allocation for the RISC-V SSA-style IR to obtain RISCV-V machine code.
+[Note: Lie, not done yet but is part of the vision]}
 
-- Implement register allocation for the RISC-V SSA-style IR to obtain RISCV-V machine code.
-[Note: Lie, not done yet but is part of the vision]
+\item {Assembly Printer that outputs resulting RISC-V machine code.
+[note: Lie]}
 
-- Assembly Printer that outputs resulting RISC-V machine code.
-[note: Lie]
+\item {Lemmas and tactics in Lean that allow to automatically verify new rewrites in Lean}
+
+\end{itemize}
+
+As noted throughout this thesis, due to time constraints and the ongoing development of Lean-MLIR, our work includes a few limitations that we plan to address in the future. However, we believe these do not affect the overall approach we have followed. For example, we focused only on a pure fragment of LLVM IR without side effects. Given the continued progress in Lean-MLIR, we are confident that extending our approach to handle side effects will be feasible in future work.
+
+All code and proofs developed in this thesis have been upstreamed to the Lean-MLIR project and are publicly available.

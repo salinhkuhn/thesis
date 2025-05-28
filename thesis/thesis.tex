@@ -71,38 +71,17 @@
 %% This MUST be loaded after varioref, which is loaded in 'extrapackages'
 %% above.  We just load it last to be safe.
 \usepackage[linkcolor=black,colorlinks=true,citecolor=black,filecolor=black]{hyperref}
-\usepackage{listings}
-\usepackage{xcolor}
-
-% Define your code style
-\lstset{
-    language=Java,    % change this to your language
-    basicstyle=\ttfamily\small,
-    captionpos=b,
-    keywordstyle=\color{blue},
-    commentstyle=\color{green!60!black},
-    stringstyle=\color{red},
-    numbers=left,
-    numberstyle=\tiny\color{gray},
-    breaklines=false,
-    showspaces=false,
-    showstringspaces=false,
-    tabsize=2
-}
-%\newunicodechar{⟨}{\ensuremath{\langle}}
-%\newunicodechar{⟩}{\ensuremath{\rangle}}
 
 
 %% Document information
 %% ====================
 
-\title{Verified Instruction Selection Pipeline in Lean4:
-LLVM IR to ISA}
-\author{S. Kuhn}
-\thesistype{Bachelor Thesis}
-\advisors{Advisors: }
+\title{Title of Thesis}
+\author{S. Tudent}
+\thesistype{Master Thesis}
+\advisors{Advisors: Prof.\ Dr.\ A. D. Visor, Dr.\ P. Ostdoc}
 \department{Department of Computer Science}
-\date{March 05, 2025}
+\date{January 19, 2038}
 
 \begin{document}
 
@@ -127,6 +106,14 @@ LLVM IR to ISA}
 
 %% Your real content!
 \input{introduction}
+\input {background1}
+\input{thesis/Framework}
+\input{thesis/InstructionSelection}
+\input{thesis/PeepholeOptimization}
+\input{thesis/RelatedWork}
+\input{thesis/Evaluation}
+\input{thesis/FutureWork}
+
 \appendix
 
 \input{appendix}

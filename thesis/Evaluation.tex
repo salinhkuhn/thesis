@@ -1,0 +1,71 @@
+\chapter{Evaluation}
+In this chapter, we evaluate our instruction selection and peephole-based optimization passes for both LLVM IR and RISC-V. We compare our instruction selection with that of LLVM and CompCert, then assess the impact of our optimizations by comparing output programs at various optimization levels. We also use our framework to verify the semantics of RISC-V code generation tests from the LLVM test suite. Within our supported language fragment, we cover XY\% of the suite and uncover XY bugs, highlighting the practical value of our approach. In addition, we attempt to reproduce known bugs in the RISC-V backend and perform further testing by generating random LLVM IR programs and verifying their lowering. The final section presents concrete examples of our pipeline's output. Throughout the evaluation, we also assess the proof techniques employed and the degree of proof automation achieved.
+
+\section{Evaluation: Instruction Selection}
+[current problems: do not generate assembly, toolchains does not exist yet, cant process a proer LLVM IR file, needs a lot of manual rewritting into SSA-form, same for RISC-V.
+would like to maybe autogenerate same LLVM IR programs directly in correct syntax and program them correct/test their lowering
+]
+\subsection{Non-optimized}
+In the non-optimized setting, we run all compilers at their lowest optimization levels (e.g., \texttt{-O0} for LLVM, unoptimized mode for CompCert, and no peephole rewrites in our system). Our goal here is to test the raw quality of instruction selection.
+
+LLVM tends to generate instruction sequences that are closer to machine idioms, even at \texttt{-O0}, while CompCert often chooses conservative, architecture-independent sequences. Our verified instruction selection succeeds in selecting instruction sequences that closely resemble those of LLVM, often matching them exactly in structure and efficiency.
+
+In several cases, our output uses fewer instructions than CompCert for common patterns like arithmetic operations. LLVM typically produces instruction sequences that closely reflect the target machine's instruction set, even at \texttt{-O0}, whereas CompCert often generates more conservative and generic code that is less tailored to the underlying architecture. While LLVM occasionally emits slightly more compact sequences compared to our work due to XY  our results demonstrates that a formally verified approach can still achieve comparable performance.
+\subsection{Optimized}
+Compiler optimizations are crucial for generating efficient machine code, but verified compilers often lack extensive optimizations. In this section, we evaluate our peephole-based optimization pass, which is designed to improve instruction selection while preserving correctness through refinement.
+We evaluate our instruction selection with optimizations enabled. This is particularly relevant because most verified compilers, such as CompCert, apply only a limited set of optimizations due to the challenges of maintaining formal guarantees. 
+To assess the effectiveness of our optimizations, we compare our output to that of LLVM at various optimization levels. We found that enabling our peephole optimizations resulted in instruction sequences that converge with those produced by LLVM at the \texttt{XY} level in XY\% of cases. This convergence is especially encouraging given that LLVM applies a wide range of aggressive optimizations.
+Compared to CompCert, our system produces more efficient instruction sequences in XY programs. This improvement is largely due to the greater flexibility of our peephole optimization framework. The Lean-MLIR peephole rewriter can optimize patterns across use-def chains, allowing it to capture semantically meaningful transformations even when instructions are not adjacent. These capabilities allow us to handle a broader range of optimization opportunities than traditional pattern-matching approaches. While CompCert’s linear peephole rules are effective within a narrow window, we benefit from more contextual awareness. For example, we are able to:
+
+[insert pattern that we could optimize and CompCert not if that pattern exist]
+
+Overall, our results show that even within a verified compilation framework, it is possible to apply practical and effective optimizations that bring the generated code closer to the quality of mature, unverified compilers while still maintaining correctness guarantees.
+
+
+\subsection {Verifying LLVM's RISC-V test suite}
+As of version 11, LLVM includes approximately XY test cases, with a subset specifically targeting RISC-V code generation. While the Alive project has focused on verifying transformations at the IR level, our work concentrates on the lowerings from LLVM IR to RISC-V. The LLVM test suite itself is not formally verified, and its test cases are contributed by the community of developers. Moreover, many of these test cases are designed to check for exact output sequences, which may not capture the more subtle notion of semantic refinement.
+
+A typical test case in the LLVM test suite targeting the  RISC-V code generation:
+\begin{figure}[ht]
+\centering
+\begin{minipage}{\textwidth}
+\begin{lstlisting}
+; RUN: llc -mtriple=riscv64 -verify-machineinstrs < %s \
+; RUN:   | FileCheck %s -check-prefix=RV64I
+
+define i64 @xori(i64 %a) nounwind {
+; RV64I-LABEL: xori:
+; RV64I:       # %bb.0:
+; RV64I-NEXT:    xori a0, a0, 4
+; RV64I-NEXT:    ret
+  %1 = xor i64 %a, 4
+  ret i64 %1
+}
+\end{lstlisting}
+\end{minipage}
+\end{figure}
+
+The test case checks whether the lowering of the LLVM IR program modelling an XOR with the constant \textit{4} is lowered to the corresponding RISC-V operation. The first line in the test specifies the llvm static compiler (llc) to be invoked to compile the current file to machine code targeting a RISC-V 64-bit processor. The 
+\textit{-verify-machineinstrs}, indicates to verfiy the machine instruction generated by llc. Lastly, the output is piped into the filecheck tool, which verifies that the output corresponds to the expected patterns annotated with RV64I in same file.
+
+To verify test cases using our work, we encode the corresponding test case in the set up of our framework and use our developed Lean tactics to verify the soundness of the test case leveraging proof automation whenever possible. The majority of refinement proofs were discharged automatically via tactic-based automation and simplification rules.
+
+[DREAM : INSERT TABLE OF ALL THE VERIFIED RISC-V TEST CASES,
++ additionally generate random test cases and try to find bugs ]
+
+
+
+\textbf{Results}
+We identified XY bugs, including XY violations of the refinement relationship between the LLVM IR source and the corresponding RISC-V target code. We reported XY bugs to the LLVM/RISC-V community. 
+
+Here we present selected bugs :
+TO DO
+
+\textbf{Reproducing known bugs}
+To further evaluate our work, we additionally selected known and previously reported bugs in the RISC-V backend and investigated whether our approach could detect them. Out of XY randomly selected bugs, we could successfully detected XY. In the selection of the reported bugs we were current limited by the supported LLVM IR fragment in Lean-MLIR, which supports a small subset of LLVM IR and operates in a purely side-effect-free setting.
+
+\textbf{Further testing }
+ In addition to reusing and reimplementing tests from the LLVM RISC-V test suite, we also generate random LLVM IR programs within our supported language fragment. These programs are then lowered to RISC-V and verified for correctness using our refinement-based approach. Out of XY randomly generated programs, we identified XY semantic bugs in the lowering process, further demonstrating the bug-finding capability of our set up
+ .
+\section{End-to-End Examples}
+This section provides examples of LLVM IR programs lowered to RISC-V using our established pipeline. The first example is unoptimized, while the second example includes optimizations applied through our rewrite rules.

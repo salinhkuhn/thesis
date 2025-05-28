@@ -1,0 +1,142 @@
+
+\chapter{Background}
+In the following section we will introduce the topics relevant to understand the work of this thesis. We will first
+focus on the LLVM project and on the design of compilers. Then we will focus on theorem proving in Lean and the formalization of language semantics for LLVM IR and the RISC-V ISA.
+
+\section {The LLVM Ecosystem}
+%sources [1] 2022_Yilin paper 
+% [2] Peter Müller talk 
+%in general and then LLVM IR and then MLIR especially 
+\subsection{ LLVM }
+The LLVM (Low-Level Virtual Machine) project is an open-source compiler infrastructure maintained by a large, active developer community. It provides a collection of reusable and modular compiler and toolchain technologies[1].  As of today, LLVM is foundational to the compilation of many modern programming languages, including C, Rust, and Haskell.
+
+At the core of the LLVM project is its compiler intermediate representation, LLVM IR. LLVM IR is a target-independent, low-level language that acts as an intermediate abstraction layer between the source language and machine-specific assembly code. A compiler IR is characterized by being more abstract than machine code, making it easier to optimize since more of the program's structure is preserved. At the same time, it is less abstract than high-level source languages, which contain language-specific constructs.
+This balance makes IRs ideal for implementing language-agnostic optimizations that can be reused across multiple source and target languages. The concept of IRs as an abstraction layer for expressing shared properties has gained attention not only in compiler design but has also been adopted in projects aimed at building reusable tools e.g. verification frameworks.[2]
+
+In LLVM-based compilers, LLVM IR serves as the primary  representation of programs throughout the compilation chain. A compilation path leveraging LLVM can be decoupled into three phases:
+- Frontend: It translates source code into LLVM IR and must be provided by the compiler engineer of the source language.
+
+- Optimization: A series of transformation and analysis passes is performed on LLVM IR and is provided by LLVM toolchain. Currently XY are supported in LLVM.
+
+- Code generation: After language-agnostic optimization on LLVM IR, the program is lowered via an LLVM backend to machine code.
+
+The architectural separation between language-specific frontends and language-independent optimization and code generation in LLVM enables the reuse of its middle-end and backend components across a wide range of programming languages. 
+
+An important feature of LLVM IR that makes it a suitable foundation for analysis and optimization passes is its use of Single Static Assignment (SSA) form. In SSA, each variable is assigned exactly once, resulting in a unique definition point for every variable. This property simplifies data flow analysis and, consequently, enables more effective compiler optimizations.
+
+Optimization within the LLVM is performed using a modular approach, where code optimizations are structured in passes.
+ XY (TO DO) percentage of these optimization passes operate directly on LLVM IR. For example, InstCombine is a transformation pass that rewrites sequences of IR instructions into optimized, more efficient equivalents, which is known as performing peephole optimizations (see chaptre xy).
+
+ [to do: list of relevant passes to this thesis:
+  DCE, CSE and InstCombine, DAGCombine]
+
+To apply the passes LLVM offers its users a set of built-in optimization levels corresponding to a set of optimization passes ( -O1 through -O3 ). Additionally, LLVM provides users with the ability to write custom passes or apply a tailored sequence of existing passes. Using LLVM’s optimizer tool, opt, users can execute a customized pass pipeline as follows:
+
+[opt -pass1 -pass2 ... [input file] -o [output file]]
+
+The opt tool can print the optimized output to the command line, allowing users to inspect and visualize the effects of applied optimizations. This functionality offers an interactive way to experiment with LLVM’s optimization infrastructure and serves as inspiration for designs in which verified passes could be selectively applied and observed.
+
+\subsection{MLIR}
+%[sources: https://lup.lub.lu.se/luur/download?func=downloadFile&recordOId=9146373&fileOId=9146374, MLIR.llvm.org 
+%]
+The strength of LLVM lies in its modular and reusable design, which is tightly coupled to its intermediate representation. The design using an IR enables the reuse of optimization passes and backend components across the compilation of a diverse range of programming languages. MLIR (Multi-Level Intermediate Representation), a subproject within the LLVM ecosystem, extends these principles to support domain-specific compilation.
+For this purpose, unlike LLVM IR, which offers a single IR, MLIR provides an infrastructure that supports multiple IRs, referred to as dialects. These dialects are logically separated namespaces that support operations, types, and attributes relevant to a specific domain or abstraction level but overall are all unified within single hybrid IR. As the name suggests, MLIR is designed to support a multi-level IR, where various levels of abstraction are represented by these dialects tailored to a specific purpose. High-level dialects typically represent constructs from source languages or high level domain- specfic operations e.g. accelarator specfic high-level operations, while low-level dialects are designed to model operations close to target-dependent machine instructions e.g register architectures or explicit DMA insertions. A program in MLIR can use different dialects, allowing different parts of the program to be represented in a way suited to their respective abstraction levels. Each dialect in MLIR follows a consistent syntax that makes the , where operations are prefixed with a dotted prefix  that reflects the dialect namespace.
+The following is a multiplication function in MLIR using the func and arith dialects, which represent functions and arithmetic instructions.
+\begin{figure}[ht]
+\centering
+\begin{lstlisting}[language=mlir, basicstyle=\ttfamily\small]
+module {
+  func.func @mul() -> i32 {
+    %a = arith.constant 19 : i32 
+    %b = arith.constant 10 : i32 
+    %c = arith.muli %a, %b : i32 
+    return %c : i32
+  }
+}
+\end{lstlisting}
+\caption{ MLIR function that performs a multiply. Functions are represented as operations in the func dialect, arithmetic operations using the arith dialect.}
+\label{fig:mlir-addition}
+\end{figure}
+
+A core technique in MLIR is the concept of performing progressive lowerings. In this process, a source program is incrementally transformed through a series of dialects. This transformation continues until the program reaches a low-level form that is suitable for final code generation. 
+
+During this progressive lowering, optimizations can be applied. MLIR adopts LLVM’s pass-based optimization model. Optimization and analysis passes in MLIR are dialect-aware, meaning they operate specifically on the operations and types defined within each dialect and therefore perform optimizations tuned for that specific abstraction level.
+LLVM IR itself is included as a dialect within MLIR, which allows programs represented in MLIR to be lowered to LLVM IR and vice versa.
+LLVM IR can be lowered to its MLIR dialect representation by applying a compiler pass represented by --transform-llvmir. Conversely, any MLIR program can be exported to LLVM IR using the  -convert-to-dialect-tollvm pass provided by the MLIR toolchain.
+
+An example of progressivly lowering the multiplication function in listing, by applying --convert-arith-to-llvm pass is shown below. The operations in the arith dialect are lowered to the llvm ir dialect while func operations remain untransformed. 
+\begin{figure}[ht]
+\centering
+\begin{lstlisting}[language=mlir, basicstyle=\ttfamily\small]
+module {
+  func.func @mul() -> i32 {
+    %0 = llvm.mlir.constant(19 : i32) : i32
+    %1 = llvm.mlir.constant(10 : i32) : i32 
+    %2 = llvm.mlir.constant(40 : i32) : i32
+    return %2 : i32
+  }
+}
+\end{lstlisting}
+\caption{ Progressive lowering: Converting arith operations to LLVM operations while Func operations are not lowered in this phase. }
+\label{fig:mlir-addition}
+\end{figure}
+By applying an additional -convert-func-to-llvm and -canonicalize pass, the resulting mlir code is listed in XY. 
+\begin{figure}[ht]
+\centering
+\begin{lstlisting}[language=mlir, basicstyle=\ttfamily\small]
+module attributes {llvm.data_layout = ""} { 
+ llvm.func @main() -> i32 {
+    %0 = llvm.mlir.constant(190 : i32) : i32 
+    llvm.return %0 : i32
+    } 
+}
+\end{lstlisting}
+\caption{ Progressive lowering: Converting func operations to LLVM operations and canocnliaze. }
+\label{fig:mlir-addition}
+\end{figure}
+These lowering phases illustrate the use of MLIR as a multi-level IR, where a program is progressively lowered through a sequence of passes applied to a hybrid IR composed of multiple dialects.
+
+The conversions between MLIR IRs and LLVM IR enable LLVM IR to be ported into the MLIR LLVM dialect and conversely, allow the LLVM backend to generate machine code from MLIR by converting it to LLVM IR.
+
+LLVM and with it MLIR are compiler frameworks that leverage the use of intermediate representations and targeted optimizations that exhibit returns across many targets.  A compiler stack is commonly composed of a series of lowerings and transformations that translate a source program into machine-specific assembly code. A key stage in this process is instruction selection, which is preceded by IR optimizing passes and followed by target-specific optimizations. 
+
+\section{Instruction Selection \& Optimization}
+\subsection {Instruction Selection}
+During the compilation process, a source program passes through multiple transformation stages before it is converted into an executable. Code generation is a key phase in compiler backends where machine code is produced from the intermediate representation (IR) of the program. Instruction selection is usually located within the code generator and is performed before instruction scheduling and register allocation. During Instruction selection high-level IR operations are converted into concrete instructions defined by the target architecture’s Instruction Set Architecture (ISA), or into a lower-level IR depending on the compiler's design.
+ This translation is non-trivial, as a single IR instruction may correspond to multiple possible sequences of machine instructions each offering different trade-offs in terms
+of performance, code size, or resource usage. 
+
+The IR often includes abstract operations that do not map one-to-one to the instructions available in the ISA. In many cases, the ISA supports a narrower set of operations compared to those represented in the IR e.g RISC-V does not supported a neg instruction while LLVM IR does. Therefore, instruction selection must decompose complex IR operations into semantically equivalent sequences of machine instructions while preserving the original program behavior.
+
+[TO DO : give an example lowering if icmp ]
+
+Instruction selection is critical,as it contributes to how the high-level program semantics are preserved in the final executable. If the mapping from IR instruction to machine code instruction is semantically incorrect, the resulting executable will fail to correctly implement the source program.
+
+[to do: write baout instruction selection and tabel gen files etc how they are matched ]
+In modern compiler frameworks such as LLVM, instruction selectors are typically implemented using pattern matching mechanisms. Instruction selectors rely on a set of predefined rules that match specific IR instruction patterns and replace them with the corresponding target machine instructions, when that pattern is found in the program. The instruction selection process can also be formulated as a graph covering problem. In the graph-based approach, the IR is transformed into a graph representation, where instruction selection involves covering this graph with tiles that represent machine instructions. The goal is to find a covering that minimizes a defined cost metric e.g such as execution time or instruction count. Depending on the complexity of instruction selection, the compiler may produce suboptimal code. Due to the lowering process from one language to another inefficiencies can be introduced or new optimization opportunities arise due to the structure of the target-specific machine code. 
+[TO DO : ACTUALLY DOUBLE CHECK THIS ]
+As a result, compilers often include peephole optimization passes after instruction selection. Peephole optimizations are introduced in detail in the next subsection after introdcuing Risc-V, the target architecture ISA ued in our instruction selection.
+
+\subsection{Peephole Optimizations}
+Peephole optimization is a fundamental technique in a compilers optimization toolkit [3 peek]e.g employed in production compilers like GCC (a C compiler) and LLVM. Peephole optimizations involves analyzing short sequences of instructions and transforming them into semantically equivalent but more efficient sequences.  Peephole rewrites focus on a small, localized section of the code ("a peephole")  and transform few instructions into semanitcally equivalent but optimized instruction sequences. Common types of peephole optimization include constant folding (replacing calculations on constants with their result) and strength reduction (replacing expensive operations with cheaper ones). When perforemd on machine cde level they contain architecutre specific optimzations e.g. choosing diffrent instructions to maximize the use of the avaiable functional units. Peephole optimizations individually focus on a small scope, but  applied throughout a program significantly improve performance and reduce code size. Additionally peephole optimizations are emplyoed in canonciluzation passes (see listing of mlir above), to rewrite code into a standard or simplified form. The LLVM InstCombine pass is peephole optimization pass that performs IR-to-IR rewrites and  [TO DO MORE facts about InstCombine ]
+ \begin{lstlisting}[language=Python, caption=unoptimized IR instruction sequence]
+    %v1 = llvm.and %X, %Y
+    %v2 = llvm.or %X, %Y
+    %v3 = llvm.add %v1, %v2
+\end{lstlisting}
+ \begin{lstlisting}[language=Python, caption= peephole optimized IR instruction sequence ]
+ %v3 = llvm.add %X, %Y
+\end{lstlisting}
+ [TO DO INASERT GRAPHIC OF PEEPHOLE OPTIMIZATION PASS ]
+ Traditionally, peephole optimization is implemented using pattern-based rewriting. The compiler matches a predefined find pattern — which specifies a particular instruction sequence — and replaces it with a corresponding replace - pattern that yields semantically equivalent but performance optimized sequence. Peephole optimization is performed at various stages of the compilation pipeline, such as on the intermediate representation level to improve the IR after high-level transformations or at the assembly level to refine the final machine code.
+\section {RISC-V 64}
+\subsection{ ISA}
+The target language of our instruction selection will be lowered  is RISC-V, an open instruction set architecture developed at the University of Berkley. As the name suggests RISC-V is based on the reduced instruction set computer principle (RISC), where the ISA exhibits potentially many but simple instructions in comparison to CISC architectures.  RISC-V compromises an integer base ISA that comes with various added extensions allowing for a modular and domain-specific design of the ISA. RISC-V is available as a 32-bit (RV32) and 64-bit (RV64) architecture version while there are current efforts for  larger address space architectures like  RV128. 
+
+The RISC-V base ISA specifies instructions for logic operations like integer manipulation, address calculation, control flow, and memory allowing for implementation of a simple general-purpose computer. Extensions like the bit manipulation extension (e.g ZBB)  supplement the base ISA and target code size reduction or performance improvement. The ZBB extension is defined for RV32 and RV64 (and follows the convention specified for RV64).
+\subsection{ ISA Semantics}
+\section {Lean}
+\subsection{ Lean 4 }
+\subsection{ Proving in Lean }
+\subsection{ Bit Vector reasoning in Lean }
+\section {Lean-Mlir}

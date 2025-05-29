@@ -44,7 +44,7 @@ For this purpose, unlike LLVM IR, which offers a single IR, MLIR provides an inf
 The following is a multiplication function in MLIR using the func and arith dialects, which represent functions and arithmetic instructions.
 \begin{figure}[ht]
 \centering
-\begin{lstlisting}[language=mlir, basicstyle=\ttfamily\small]
+\begin{lstlisting}[language=LLVM, basicstyle=\ttfamily\small]
 module {
   func.func @mul() -> i32 {
     %a = arith.constant 19 : i32 

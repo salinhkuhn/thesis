@@ -28,8 +28,8 @@
 \usepackage[utf8]{inputenc}
 
 %% This changes default fonts for both text and math mode to use Herman Zapfs
-%% excellent Palatino font.  Do not change this.
-\usepackage[sc]{mathpazo}
+%% excellent Palatino font.  Do not change this. AKA I CHANGED IT 
+
 
 %% The AMS-LaTeX extensions for mathematical typesetting.  Do not
 %% remove.
@@ -72,6 +72,9 @@
 %% above.  We just load it last to be safe.
 \usepackage[linkcolor=black,colorlinks=true,citecolor=black,filecolor=black]{hyperref}
 
+\usepackage[labelfont=bf,labelsep=period]{caption}
+\captionsetup[figure]{name=Fig.}
+\captionsetup[figure]{font=small, labelfont=normalfont}
 
 %% Document information
 %% ====================
@@ -82,6 +85,13 @@
 \advisors{Advisors: Prof.\ Dr.\ A. D. Visor, Dr.\ P. Ostdoc}
 \department{Department of Computer Science}
 \date{January 19, 2038}
+
+
+%WHATEVER I added 
+% Correct caption configuration for memoir + caption
+
+
+
 
 \begin{document}
 
